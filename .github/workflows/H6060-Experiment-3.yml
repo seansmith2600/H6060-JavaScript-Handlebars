@@ -188,7 +188,7 @@ jobs:
       reporting-enabled: ${{ inputs.reporting-enabled }}
       horusec-files-or-paths-to-ignore: "**/integration-testing/**,**/dist/**"
       semgrep-files-or-paths-to-ignore: "integration-testing,dist"
-      sonarqube-sources: src
+      sonarqube-sources: .
       project-name: H6060-JavaScript-Handlebars
       build-artifact: javascript-build
       build-directory: ''
