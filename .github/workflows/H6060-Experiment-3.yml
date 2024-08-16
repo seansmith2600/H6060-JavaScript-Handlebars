@@ -1,0 +1,192 @@
+name: H6060 Experiment 3 - Handlebars
+
+on:
+  workflow_dispatch:
+    inputs:
+      sast-codeql-enabled:
+        description: Enable CodeQL scan (SAST)
+        type: boolean
+        required: false
+        default: true
+
+      sast-horusec-enabled:
+        description: Enable Horusec scan (SAST)
+        type: boolean
+        required: false
+        default: true
+
+      sast-semgrep-enabled:
+        description: Enable Semgrep scan (SAST)
+        type: boolean
+        required: false
+        default: true
+
+      sast-snyk-code-enabled:
+        description: Enable Snyk Code scan (SAST)
+        type: boolean
+        required: false
+        default: true
+
+      sast-sonarqube-enabled:
+        description: Enable SonarQube scan (SAST)
+        type: boolean
+        required: false
+        default: true
+
+      sca-grype-enabled:
+        description: Enable Grype scan (SCA)
+        type: boolean
+        required: false
+        default: true
+
+      sca-owasp-dependency-check-enabled:
+        description: Enable OWASP Dependency Check scan (SCA)
+        type: boolean
+        required: false
+        default: true
+
+      sca-snyk-enabled:
+        description: Enable Snyk scan (SCA)
+        type: boolean
+        required: false
+        default: true
+
+      reporting-enabled:
+        description: Enable reporting jobs
+        type: boolean
+        required: false
+        default: true
+
+defaults:
+  run:
+    shell: bash
+
+permissions: write-all
+
+jobs:
+  build-application:
+    name: Build Application
+    strategy:
+      matrix:
+        os: [ ubuntu-22.04, windows-2022, macos-14 ]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4.0.2
+        with:
+          node-version: 16.x
+
+      - name: Install Grunt
+        run: npm install -g grunt-cli@1.5.0
+
+      - name: Install JavaScript Dependencies
+        run: npm ci
+
+      - name: Build Handlebars Application - ${{ matrix.os }}
+        uses: seansmith2600/H6060-Experiment-Resources/.github/actions/javascript/javascript-build@main
+        with:
+          build-command: grunt
+          package-command: npm pack
+          artifact-name: javascript-build-${{ matrix.os }}
+
+  create-dependency-tree:
+    name: Create Dependency Tree
+    needs: build-application
+    strategy:
+      matrix:
+        os: [ ubuntu-22.04, windows-2022, macos-14 ]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4.0.2
+        with:
+          node-version: 16.x
+
+      - name: Install JavaScript Dependencies
+        run: npm ci
+
+      - name: Create Dependency Tree - ${{ matrix.os }}
+        uses: seansmith2600/H6060-Experiment-Resources/.github/actions/javascript/javascript-dependency-tree@main
+        with:
+          artifact-name: dependency-tree-${{ matrix.os }}
+
+  create-cyclonedx-sbom:
+    name: Create CycloneDX SBOM
+    needs: build-application
+    strategy:
+      matrix:
+        os: [ ubuntu-22.04, windows-2022, macos-14 ]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Download Build Artifact
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          name: javascript-build-${{ matrix.os }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          workflow: ${{ github.event.workflow_run.workflow_id }}
+          workflow_conclusion: ""
+          commit: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4.0.2
+        with:
+          node-version: 16.x
+
+      - name: Install JavaScript Dependencies
+        run: npm ci
+
+      - name: Create CycloneDX SBOM - ${{ matrix.os }}
+        uses: seansmith2600/H6060-Experiment-Resources/.github/actions/javascript/javascript-cyclonedx-sbom@main
+        with:
+          artifact-name: cyclonedx-sbom-javascript-${{ matrix.os }}
+
+  security_tool_analysis:
+    name: Perform Security Tool Analysis
+    uses: seansmith2600/H6060-Experiment-Resources/.github/workflows/experiment-3-javascript.yml@main
+    needs: [ create-dependency-tree, create-cyclonedx-sbom ]
+    secrets:
+      github-token: ${{ secrets.GITHUB_TOKEN }}
+      github-api-token: ${{ secrets.GIT_API_TOKEN }}
+      nvd-api-key: ${{ secrets.NVD_API_KEY }}
+      opencve-username: ${{ secrets.OPENCVE_USERNAME }}
+      opencve-password: ${{ secrets.OPENCVE_PASSWORD }}
+      honeycomb-api-key: ${{ secrets.HONEYCOMB_API_KEY }}
+      deepsource-api-key: ${{ secrets.DEEPSOURCE_API_KEY }}
+      semgrep-app-token: ${{ secrets.SEMGREP_APP_TOKEN }}
+      snyk-token: ${{ secrets.SNYK_TOKEN }}
+      sonarqube-username: ${{ secrets.SONARQUBE_USERNAME }}
+      sonarqube-password: ${{ secrets.SONARQUBE_PASSWORD }}
+      sonarqube-token-ubuntu: ${{ secrets.SONARQUBE_TOKEN_UBUNTU }}
+      sonarqube-token-macos: ${{ secrets.SONARQUBE_TOKEN_MACOS }}
+      sonarqube-token-windows: ${{ secrets.SONARQUBE_TOKEN_WINDOWS }}
+      sonarqube-user-token-ubuntu: ${{ secrets.SONARQUBE_USER_TOKEN_UBUNTU }}
+      sonarqube-user-token-macos: ${{ secrets.SONARQUBE_USER_TOKEN_MACOS }}
+      sonarqube-user-token-windows: ${{ secrets.SONARQUBE_USER_TOKEN_WINDOWS }}
+      sonarqube-url-ubuntu: ${{ secrets.SONARQUBE_URL_UBUNTU }}
+      sonarqube-url-macos: ${{ secrets.SONARQUBE_URL_MACOS }}
+      sonarqube-url-windows: ${{ secrets.SONARQUBE_URL_WINDOWS }}
+    with:
+      sast-codeql-enabled: ${{ inputs.sast-codeql-enabled }}
+      sast-horusec-enabled: ${{ inputs.sast-horusec-enabled }}
+      sast-semgrep-enabled: ${{ inputs.sast-semgrep-enabled }}
+      sast-snyk-code-enabled: ${{ inputs.sast-snyk-code-enabled }}
+      sast-sonarqube-enabled: ${{ inputs.sast-sonarqube-enabled }}
+      sca-grype-enabled: ${{ inputs.sca-grype-enabled }}
+      sca-owasp-dependency-check-enabled: ${{ inputs.sca-owasp-dependency-check-enabled }}
+      sca-snyk-enabled: ${{ inputs.sca-snyk-enabled }}
+      reporting-enabled: ${{ inputs.reporting-enabled }}
+      horusec-files-or-paths-to-ignore: "**/integration-testing/**,**/dist/**"
+      semgrep-files-or-paths-to-ignore: "integration-testing,dist"
+      sonarqube-sources: src
+      project-name: H6060-JavaScript-Handlebars
+      build-artifact: javascript-build
+      build-directory: ''
