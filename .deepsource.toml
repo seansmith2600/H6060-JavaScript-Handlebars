@@ -1,0 +1,11 @@
+version = 1
+
+test_patterns = ["*/integration-testing/**"]
+
+exclude_patterns = [
+    "dist/**"
+]
+
+[[analyzers]]
+name = "javascript"
+enabled = true
