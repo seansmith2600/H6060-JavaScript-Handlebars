@@ -73,6 +73,8 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: Setup Node.js
         uses: actions/setup-node@v4.0.2
@@ -186,7 +188,7 @@ jobs:
       reporting-enabled: ${{ inputs.reporting-enabled }}
       horusec-files-or-paths-to-ignore: "**/integration-testing/**,**/dist/**"
       semgrep-files-or-paths-to-ignore: "integration-testing,dist"
-      sonarqube-sources: src
+      sonarqube-sources: .
       project-name: H6060-JavaScript-Handlebars
       build-artifact: javascript-build
       build-directory: ''
